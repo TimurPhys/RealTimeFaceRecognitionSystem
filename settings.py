@@ -1,0 +1,5 @@
+API_KEY = "c51abd4e-2d64-4d9d-856e-9e54f9cb0834"
+API_URL = "http://localhost:8000/api/v1/recognition/recognize?plugins=age,gender&face_plugins=age,gender"
+CAMERA_URL = "http://192.168.88.37:8888/out.jpg"
+NOTIFICATION_COOLDOWN = 10
+REQUEST_INTERVAL = 0.1
