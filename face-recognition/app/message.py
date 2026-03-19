@@ -1,5 +1,9 @@
 import time
-from settings import NOTIFICATION_COOLDOWN
+import os
+from dotenv import load_dotenv, find_dotenv
+
+load_dotenv(find_dotenv())
+NOTIFICATION_COOLDOWN = os.getenv("NOTIFICATION_COOLDOWN")
 
 last_seen_subjects = {}
 

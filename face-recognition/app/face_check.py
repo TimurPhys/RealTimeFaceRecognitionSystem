@@ -1,11 +1,19 @@
 import cv2
+from dotenv import load_dotenv, find_dotenv
+import os
 import requests
 import json
 import time
 
 from video_stream import VideoStream
 from message import *
-from settings import *
+
+load_dotenv(find_dotenv())
+API_KEY = os.getenv("API_KEY")
+API_URL = os.getenv("API_URL")
+CAMERA_URL = os.getenv("CAMERA_URL")
+REQUEST_INTERVAL = os.getenv("REQUEST_INTERVAL")
+
 
 def recognize_face(frame):
     # Уменьшаем фото, чтобы JSON-запрос летал быстрее
@@ -21,7 +29,6 @@ def recognize_face(frame):
     except Exception as e:
         print(f"Ошибка связи с сервером: {e}")
         return None
-
 
 # Инициализируем поток с Yawcam
 vs = VideoStream(CAMERA_URL).start()
