@@ -1,9 +1,7 @@
 import cv2
 import os
-import httpx
-import json
 from dotenv import find_dotenv, load_dotenv
-from db.database import add_log
+from shared.db.database import add_log
 
 load_dotenv(find_dotenv())
 

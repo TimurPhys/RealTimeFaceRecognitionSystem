@@ -1,8 +1,6 @@
 import cv2
-import httpx
 import asyncio
 import numpy as np
-import time
 
 class VideoStream:
     def __init__(self, src, client):
