@@ -40,11 +40,12 @@ async def add_log(person):
 
 async def find_log_by_name(name):
     async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
         cursor = await db.execute(
             "SELECT name, timestamp FROM logs WHERE name = ?", (name, )
             )
         person = await cursor.fetchone()
-        return person
+        return dict(person) if person else None
     
 ## Работа с таблицей пользователей
 async def add_user(name):
@@ -64,9 +65,10 @@ async def update_user_by_name(name, new_photo):
 
 async def find_user_by_name(name):
     async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
         cursor = await db.execute(
             "SELECT * FROM users WHERE name = ?", 
             (name, )
         )
         user = await cursor.fetchone()
-        return user
+        return dict(user) if user else None
