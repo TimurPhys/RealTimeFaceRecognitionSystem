@@ -1,0 +1,80 @@
+from shared.db.database import *
+from requests.send import send_data_to_pc, find_subject
+from keyboards.keyboard import *
+
+from aiogram import F, Router, Bot
+from aiogram.types import Message, ReplyKeyboardRemove
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import StatesGroup, State
+
+
+add_user_router = Router()
+
+## ------ Регистрация пользователя --------
+class User(StatesGroup):
+    name = State()
+    photos = State()
+    apply = State()
+
+
+@add_user_router.message(F.text == "Добавить пользователя")
+async def add_user(message: Message, state: FSMContext):
+    await state.set_state(User.name)
+    await message.answer('Введите имя пользователя', reply_markup=ReplyKeyboardRemove())
+
+@add_user_router.message(User.name)
+async def add_user_name(message: Message, state: FSMContext):
+    name = message.text
+    user_found = await find_subject(name)
+    if user_found:
+        await state.clear()
+        await message.answer(f"❌ Пользователь с именем **{name}** уже зарегистрирован!", reply_markup=menu_keyboard)
+    else:
+        await state.update_data(name=message.text)
+        await state.set_state(User.photos)
+        await message.answer('Отправьте фото пользователя (до 4-х фото)')
+
+
+@add_user_router.message(User.photos, F.photo)
+async def add_user_photos(message: Message, state: FSMContext, album: list[Message] = None):
+    if album:
+        new_photo_ids = [msg.photo[-1].file_id for msg in album] 
+    else:
+        new_photo_ids = [message.photo[-1].file_id]
+
+    if len(new_photo_ids) > 4:
+        await message.answer('Разрешено отправлять до 4-х фото')
+        return
+    #
+    # Проверка фото через нейросеть
+    # 
+    await state.update_data(photos_id=new_photo_ids)
+    await message.answer('Фото пользователя были успешно получены. Добавить пользователя?', reply_markup=apply_keyboard)
+    await state.set_state(User.apply)
+
+@add_user_router.message(User.apply)
+async def add_user_apply(message: Message, state: FSMContext, bot: Bot):
+    if (message.text == "Подтвердить"):
+        data = await state.get_data()
+        user_name = data.get("name")
+        photos_id = data.get("photos_id")
+        
+        status, responses = await send_data_to_pc(user_name, photos_id, bot)
+    
+        if status == "api_error":
+            await message.answer(f"⚠️ Ошибка API: На одном из фото не удалось распознать лицо.", reply_markup=menu_keyboard)
+            print(f"Детали ошибки: {responses}")
+
+        elif status == "connection_error":
+            await message.answer("🔌 Ошибка соединения: Сервер обработки лиц временно недоступен.", reply_markup=menu_keyboard)
+
+        elif status == "success":
+            # Если всё прошло успешно, записываем в нашу локальную БД
+            # await save_user_to_db(name) 
+            await message.answer(f"✅ Пользователь **{user_name}** успешно добавлен в систему!", reply_markup=menu_keyboard)
+        
+        else:
+            await message.answer(f"🧨 Произошла неизвестная ошибка: {responses}", reply_markup=menu_keyboard)
+    
+    await state.clear()
+## ------ Регистрация пользователя --------
