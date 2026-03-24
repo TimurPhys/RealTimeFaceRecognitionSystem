@@ -1,6 +1,7 @@
 from shared.db.database import *
 from requests.send import send_data_to_pc, find_subject
 from keyboards.keyboard import *
+from handlers.filters.filter import NameLatinitzaFilter
 
 from aiogram import F, Router, Bot
 from aiogram.types import Message, ReplyKeyboardRemove
@@ -22,7 +23,8 @@ async def add_user(message: Message, state: FSMContext):
     await state.set_state(User.name)
     await message.answer('Введите имя пользователя', reply_markup=ReplyKeyboardRemove())
 
-@add_user_router.message(User.name)
+# Хендлер для ПРАВИЛЬНОГО имени
+@add_user_router.message(User.name, NameLatinitzaFilter())
 async def add_user_name(message: Message, state: FSMContext):
     name = message.text
     user_found = await find_subject(name)
@@ -33,7 +35,13 @@ async def add_user_name(message: Message, state: FSMContext):
         await state.update_data(name=message.text)
         await state.set_state(User.photos)
         await message.answer('Отправьте фото пользователя (до 4-х фото)')
-
+# Хендлер-ловушка для ОШИБОЧНОГО имени (сработает, если фильтр выше вернул False)
+@add_user_router.message(User.name)
+async def name_incorrect(message: Message):
+    await message.answer(
+        "❌ Неверный формат!\n\n"
+        "Имя должно состоять из двух слов на латинице (например: Ivan Ivanov)."
+    )
 
 @add_user_router.message(User.photos, F.photo)
 async def add_user_photos(message: Message, state: FSMContext, album: list[Message] = None):
