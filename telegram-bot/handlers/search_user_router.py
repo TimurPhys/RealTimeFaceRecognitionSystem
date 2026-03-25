@@ -1,6 +1,6 @@
 from shared.db.database import *
-from requests.send import send_data_to_pc
 from keyboards.keyboard import *
+from face_db.face_db import *
 
 from aiogram import F, Router
 from aiogram.types import Message, ReplyKeyboardRemove
@@ -22,7 +22,7 @@ async def process_search(message: Message, state: FSMContext):
 
 @search_user_router.message(UserSearch.name)
 async def process_search(message: Message, state: FSMContext):
-    user = await find_user_by_name(message.text)
+    user = await find_subject(message.text)
     
     if user:
         await message.answer(f"Найден: {user['name']}")

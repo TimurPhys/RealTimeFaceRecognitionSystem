@@ -6,7 +6,7 @@ from shared.db.database import add_log
 load_dotenv(find_dotenv())
 
 API_URL = os.getenv("API_URL")
-API_KEY = os.getenv("API_KEY")
+REC_API_KEY = os.getenv("API_KEY")
 REQUEST_INTERVAL = os.getenv("REQUEST_INTERVAL")
 SIMILARITY = float(os.getenv("SIMILARITY"))
 
@@ -16,7 +16,7 @@ async def recognize_face(frame, client):
     _, img_encoded = cv2.imencode('.jpg', frame)
     
     files = {'file': ('image.jpg', img_encoded.tobytes(), 'image/jpeg')}
-    headers = {"x-api-key": API_KEY}
+    headers = {"x-api-key": REC_API_KEY}
 
     try:
         # Ставим таймаут, чтобы скрипт не завис при лаге сети

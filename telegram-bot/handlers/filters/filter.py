@@ -9,3 +9,5 @@ class NameLatinitzaFilter(Filter):
         
         pattern = r"^[A-Z][a-z]+\s+[A-Z][a-z]+$"
         return bool(re.match(pattern, message.text.strip()))
+
+    

@@ -1,5 +1,5 @@
 from shared.db.database import *
-from requests.send import send_data_to_pc, find_subject
+from face_db.face_db import add_subject_face, find_subject, validate_photos
 from keyboards.keyboard import *
 from handlers.filters.filter import NameLatinitzaFilter
 
@@ -44,30 +44,36 @@ async def name_incorrect(message: Message):
     )
 
 @add_user_router.message(User.photos, F.photo)
-async def add_user_photos(message: Message, state: FSMContext, album: list[Message] = None):
+async def add_user_photos(message: Message, state: FSMContext, bot: Bot, album: list[Message] = None):
     if album:
-        new_photo_ids = [msg.photo[-1].file_id for msg in album] 
+        new_photo_ids = [msg.photo[-1].file_id for msg in album]
     else:
         new_photo_ids = [message.photo[-1].file_id]
 
     if len(new_photo_ids) > 4:
         await message.answer('Разрешено отправлять до 4-х фото')
         return
-    #
-    # Проверка фото через нейросеть
-    # 
-    await state.update_data(photos_id=new_photo_ids)
-    await message.answer('Фото пользователя были успешно получены. Добавить пользователя?', reply_markup=apply_keyboard)
-    await state.set_state(User.apply)
+    
+    await message.answer("🔍 Проверяю качество и подлинность лиц...")
+    
+    is_valid, msg, downloaded_photos = await validate_photos(new_photo_ids, bot)
+    print(downloaded_photos)
+
+    if not is_valid:
+        await message.answer(f"❌ {msg}\nПопробуйте загрузить другие фото.")
+    else:
+        await state.update_data(photos_ids=new_photo_ids)
+        await message.answer('Фото пользователя были успешно получены. Добавить пользователя?', reply_markup=apply_keyboard)
+        await state.set_state(User.apply)
 
 @add_user_router.message(User.apply)
 async def add_user_apply(message: Message, state: FSMContext, bot: Bot):
     if (message.text == "Подтвердить"):
         data = await state.get_data()
         user_name = data.get("name")
-        photos_id = data.get("photos_id")
+        photos_ids = data.get("photos_ids")
         
-        status, responses = await send_data_to_pc(user_name, photos_id, bot)
+        status, responses = await add_subject_face(user_name, photos_ids, bot)
     
         if status == "api_error":
             await message.answer(f"⚠️ Ошибка API: На одном из фото не удалось распознать лицо.", reply_markup=menu_keyboard)
