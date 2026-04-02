@@ -1,6 +1,6 @@
 import aiohttp
 from aiogram import Bot
-from shared.db.database import *
+from shared.sql_db.database import *
 
 from io import BytesIO
 
@@ -9,15 +9,17 @@ import os
 
 load_dotenv(find_dotenv())
 
+HOST = os.getenv("HOST")
 REC_API_KEY = os.getenv("REC_API_KEY")
 VER_API_KEY = os.getenv("VER_API_KEY")
 DET_API_KEY = os.getenv("DET_API_KEY")
+SIMILARITY = float(os.getenv("SIMILARITY"))
 
 async def add_subject_face(name: str, photo_ids: list, bot: Bot):
     results = []
     # await add_user(name)
 
-    base_url = "http://localhost:8000/api/v1/recognition/faces"
+    base_url = f"http://{HOST}/api/v1/recognition/faces"
     async with aiohttp.ClientSession() as session:
         headers = {
             "x-api-key": REC_API_KEY
@@ -54,7 +56,7 @@ async def add_subject_face(name: str, photo_ids: list, bot: Bot):
         return "success", results
     
 async def find_subject(name):
-    base_url = "http://localhost:8000/api/v1/recognition/subjects"
+    base_url = f"http://{HOST}/api/v1/recognition/subjects"
 
     headers = {
         "x-api-key": REC_API_KEY
@@ -77,8 +79,8 @@ async def find_subject(name):
     return False
 
 async def validate_photos(photo_ids: list, bot: Bot):
-    detect_url = "http://localhost:8000/api/v1/detection/detect"
-    verify_url = "http://localhost:8000/api/v1/verification/verify"
+    detect_url = f"http://{HOST}/api/v1/detection/detect"
+    verify_url = f"http://{HOST}/api/v1/verification/verify"
     first_photo_bytes = None
 
     downloaded_photos = []
@@ -121,3 +123,40 @@ async def validate_photos(photo_ids: list, bot: Bot):
                         return False, f"Фото №{i+1} не похоже на первое фото. Это разные люди?"
                     
         return True, "Все проверки пройдены", downloaded_photos
+    
+async def recognize_face(image_bytes, client):
+    # Уменьшаем фото, чтобы JSON-запрос летал быстрее
+    base_url = f"http://{HOST}/api/v1/recognition/recognize?plugins=age,gender&face_plugins=age,gender"
+    
+    files = {'file': ('image.jpg', image_bytes, 'image/jpeg')}
+    headers = {"x-api-key": REC_API_KEY}
+
+    try:
+        # Ставим таймаут, чтобы скрипт не завис при лаге сети
+        r = await client.post(base_url, files=files, headers=headers, timeout=2)
+        data = r.json()
+
+        if "result" in data: ## Было распознано лицо
+            detected_persons = []
+            for face in data["result"]:
+                valid_subjects = [
+                    s for s in face.get("subjects", []) 
+                    if float(s['similarity']) >= SIMILARITY
+                ]
+                if valid_subjects:
+                    detected_persons.append({
+                        "box": face["box"],
+                        "info": valid_subjects[0]
+                    })
+
+            if detected_persons is not None:
+                for detected_person in detected_persons:
+                    # await add_log(detected_person)
+                    print("Записан в базу данных")
+                return True
+            else:
+                print("Такого лица нет в базе")
+                return False
+    except Exception as e:
+        print(f"Ошибка связи с сервером: {e}")
+        return None

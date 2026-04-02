@@ -1,6 +1,6 @@
-from shared.db.database import *
-from keyboards.keyboard import *
-from face_db.face_db import *
+from shared.sql_db.database import *
+from ..keyboards.keyboard import *
+from shared.face_db.face_db import *
 
 from aiogram import F, Router
 from aiogram.types import Message, ReplyKeyboardRemove

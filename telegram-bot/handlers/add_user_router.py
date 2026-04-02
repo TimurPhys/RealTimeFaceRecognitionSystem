@@ -1,7 +1,9 @@
-from shared.db.database import *
-from face_db.face_db import add_subject_face, find_subject, validate_photos
-from keyboards.keyboard import *
-from handlers.filters.filter import NameLatinitzaFilter
+from shared.sql_db.database import *
+from shared.face_db.face_db import *
+from ..keyboards.keyboard import *
+from .filters.filter import NameLatinitzaFilter
+
+import aiohttp
 
 from aiogram import F, Router, Bot
 from aiogram.types import Message, ReplyKeyboardRemove
@@ -36,7 +38,7 @@ async def add_user_name(message: Message, state: FSMContext):
         await state.set_state(User.photos)
         await message.answer('Отправьте фото пользователя (до 4-х фото)')
 # Хендлер-ловушка для ОШИБОЧНОГО имени (сработает, если фильтр выше вернул False)
-@add_user_router.message(User.name)
+@add_user_router.message(User.name, ~F.command)
 async def name_incorrect(message: Message):
     await message.answer(
         "❌ Неверный формат!\n\n"
@@ -57,11 +59,18 @@ async def add_user_photos(message: Message, state: FSMContext, bot: Bot, album: 
     await message.answer("🔍 Проверяю качество и подлинность лиц...")
     
     is_valid, msg, downloaded_photos = await validate_photos(new_photo_ids, bot)
-    print(downloaded_photos)
+
+    async with aiohttp.ClientSession() as session:
+        found = await recognize_face(downloaded_photos[0], session)
+    # Проверка есть ли такое лицо уже в базе
+
+    if found:
+        await message.answer("❌ Такое лицо уже существует в базе. Данный человек был прежде загружен.")
 
     if not is_valid:
         await message.answer(f"❌ {msg}\nПопробуйте загрузить другие фото.")
     else:
+        print(downloaded_photos)
         await state.update_data(photos_ids=new_photo_ids)
         await message.answer('Фото пользователя были успешно получены. Добавить пользователя?', reply_markup=apply_keyboard)
         await state.set_state(User.apply)
